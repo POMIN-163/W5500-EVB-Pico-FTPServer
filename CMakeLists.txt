@@ -24,7 +24,8 @@ set(CMAKE_CXX_STANDARD 17)
 pico_sdk_init()
 
 # Set ethernet chip
-set(WIZNET_CHIP W5100S)
+# set(WIZNET_CHIP W5100S)
+set(WIZNET_CHIP W5500)
 
 if(${WIZNET_CHIP} STREQUAL W5100S)
     add_definitions(-D_WIZCHIP_=W5100S)
@@ -49,12 +50,17 @@ if(NOT DEFINED MBEDTLS_DIR)
     message(STATUS "MBEDTLS_DIR = ${MBEDTLS_DIR}")
 endif()
 
+if(NOT DEFINED FATFS_DIR)
+    set(FATFS_DIR ${CMAKE_SOURCE_DIR}/libraries/pico_fatfs)
+    message(STATUS "FATFS_DIR = ${FATFS_DIR}")
+endif()
+
 if(NOT DEFINED PORT_DIR)
     set(PORT_DIR ${CMAKE_SOURCE_DIR}/port)
     message(STATUS "PORT_DIR = ${PORT_DIR}")
 endif()
 
-# Turn off mbedtls test mode 
+# Turn off mbedtls test mode
 set(ENABLE_PROGRAMS OFF CACHE BOOL "Build mbedtls programs")
 set(ENABLE_TESTING OFF CACHE BOOL "Build mbedtls testing")
 add_definitions(-DMBEDTLS_CONFIG_FILE="${PORT_DIR}/mbedtls/inc/ssl_config.h")
@@ -66,6 +72,7 @@ add_subdirectory(examples)
 # Add libraries in subdirectories
 add_subdirectory(${CMAKE_SOURCE_DIR}/libraries)
 add_subdirectory(${MBEDTLS_DIR})
+add_subdirectory(${FATFS_DIR})
 add_subdirectory(${PORT_DIR})
 
 # Set compile options

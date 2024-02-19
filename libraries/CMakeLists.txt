@@ -117,6 +117,9 @@ target_include_directories(FTPSERVER_FILES PUBLIC
         ${WIZNET_DIR}/Ethernet
         ${WIZNET_DIR}/Internet/FTPServer
         )
+target_link_libraries(FTPSERVER_FILES PRIVATE
+        pico_fatfs
+)
 
 # HTTP Server
 add_library(HTTPSERVER_FILES STATIC)
@@ -154,7 +157,7 @@ target_include_directories(MQTT_FILES PUBLIC
         ${WIZNET_DIR}/Ethernet
         ${WIZNET_DIR}/Internet/MQTT
         ${WIZNET_DIR}/Internet/MQTTPacket/src
-        ) 
+        )
 
 # SNTP
 add_library(SNTP_FILES STATIC)

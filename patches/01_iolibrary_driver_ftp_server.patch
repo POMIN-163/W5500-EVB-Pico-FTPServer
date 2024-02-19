@@ -1,0 +1,330 @@
+diff --git a/Internet/FTPServer/ftpd.c b/Internet/FTPServer/ftpd.c
+index 5e27041..05082d0 100644
+--- a/Internet/FTPServer/ftpd.c
++++ b/Internet/FTPServer/ftpd.c
+@@ -4,14 +4,14 @@
+ *
+ * Filename	: ftpd.c
+ * Version	: 1.0
+-* Programmer(s)	: 
++* Programmer(s)	:
+ * Created	: 2003/01/28
+ * Description   : FTP daemon. (AVR-GCC Compiler)
+ */
+ 
+ 
+-#include <stdio.h> 
+-#include <ctype.h> 
++#include <stdio.h>
++#include <ctype.h>
+ #include <string.h>
+ #include <limits.h>
+ #include <stdarg.h>
+@@ -108,6 +108,40 @@ int current_hour = 10;
+ int current_min = 10;
+ int current_sec = 30;
+ 
++FRESULT scan_files (
++    char *path,        /* Start node to be scanned (***also used as work area***) */
++    char *files,
++    uint16_t *num
++)
++{
++    FRESULT res;
++    DIR dir;
++    UINT i;
++    static FILINFO fno;
++	uint16_t _num = 0;
++
++	*num = 0;
++
++    res = f_opendir(&dir, path);                       /* Open the directory */
++    if (res == FR_OK) {
++        for (;;) {
++            res = f_readdir(&dir, &fno);                   /* Read a directory item */
++            if (res != FR_OK || fno.fname[0] == 0) break;  /* Break on error or end of dir */
++			i = strlen(path);
++			uint8_t isdir = (fno.fattrib & AM_DIR);
++			char size[32];
++            sprintf(size, "%ld", (fno.fattrib & AM_DIR) ? 0 : fno.fsize);
++			files += sprintf(files, "%crwxr-xr-x 1 pomin pomin %s Jan 19 2024 %s\r\n", (fno.fattrib & AM_DIR) ? 'd' : '-', size, fno.fname);
++            _num++;
++        }
++        f_closedir(&dir);
++    }
++
++	*num = _num;
++
++    return res;
++}
++
+ int fsprintf(uint8_t s, const char *format, ...)
+ {
+ 	int i;
+@@ -140,7 +174,7 @@ void ftpd_init(uint8_t * src_ip)
+ 	local_ip.cVal[2] = src_ip[2];
+ 	local_ip.cVal[3] = src_ip[3];
+ 	local_port = 35000;
+-	
++
+ 	strcpy(ftp.workingdir, "/");
+ 
+ 	socket(CTRL_SOCK, Sn_MR_TCP, IPPORT_FTP, 0x0);
+@@ -158,7 +192,7 @@ uint8_t ftpd_run(uint8_t * dbuf)
+ #endif
+ 
+ 	//memset(dbuf, 0, sizeof(_MAX_SS));
+-	
++
+     switch(getSn_SR(CTRL_SOCK))
+     {
+     	case SOCK_ESTABLISHED :
+@@ -181,11 +215,11 @@ uint8_t ftpd_run(uint8_t * dbuf)
+     			}
+     			connect_state_control = 1;
+     		}
+-	
++
+ #if defined(_FTP_DEBUG_)
+     		//printf("ftp socket %d\r\n", CTRL_SOCK);
+ #endif
+-			 
++
+     		if((size = getSn_RX_RSR(CTRL_SOCK)) > 0) // Don't need to check SOCKERR_BUSY because it doesn't not occur.
+     		{
+ #if defined(_FTP_DEBUG_)
+@@ -275,7 +309,7 @@ uint8_t ftpd_run(uint8_t * dbuf)
+ #endif
+     			connect_state_data = 1;
+     		}
+-	
++
+     		switch(ftp.current_cmd)
+     		{
+     			case LIST_CMD:
+@@ -284,23 +318,37 @@ uint8_t ftpd_run(uint8_t * dbuf)
+     				printf("previous size: %d\r\n", size);
+ #endif
+ #if defined(F_FILESYSTEM)
+-    				scan_files(ftp.workingdir, dbuf, (int *)&size);
++					printf("pwd: %s\r\n",  ftp.workingdir);
++					scan_files(ftp.workingdir, dbuf, &size);
++
++					// if (strncmp(ftp.workingdir, "/$Recycle.Bin", sizeof("/$Recycle.Bin")) != 0)
++					// size = sprintf(dbuf, "drwxr-xr-x 1 ftp ftp 0 Dec 31 2014 $Recycle.Bin\r\n-rwxr-xr-x 1 ftp ftp 512 Dec 31 2014 test.txt\r\n");
++
+ #endif
+ #if defined(_FTP_DEBUG_)
+-    				printf("returned size: %d\r\n", size);
+-    				printf("%s\r\n", dbuf);
++					printf("returned size: %d\r\n", size);
++					printf("%s\r\n", dbuf);
+ #endif
+ #if !defined(F_FILESYSTEM)
+-    				if (strncmp(ftp.workingdir, "/$Recycle.Bin", sizeof("/$Recycle.Bin")) != 0)
+-    					size = sprintf(dbuf, "drwxr-xr-x 1 ftp ftp 0 Dec 31 2014 $Recycle.Bin\r\n-rwxr-xr-x 1 ftp ftp 512 Dec 31 2014 test.txt\r\n");
+-#endif
+-    				size = strlen(dbuf);
+-    				send(DATA_SOCK, dbuf, size);
+-    				ftp.current_cmd = NO_CMD;
+-    				disconnect(DATA_SOCK);
+-    				size = sprintf(dbuf, "226 Successfully transferred \"%s\"\r\n", ftp.workingdir);
+-    				send(CTRL_SOCK, dbuf, size);
+-    				break;
++					if (strncmp(ftp.workingdir, "/$Recycle.Bin", sizeof("/$Recycle.Bin")) != 0)
++						size = sprintf(dbuf, "drwxr-xr-x 1 ftp ftp 0 Dec 31 2014 $Recycle.Bin\r\n-rwxr-xr-x 1 ftp ftp 512 Dec 31 2014 test.txt\r\n");
++#endif
++					if (size != 0)
++					{
++						size = strlen(dbuf);
++						send(DATA_SOCK, dbuf, size);
++					} else
++					{
++						size = sprintf(dbuf, "\r\n");
++						send(DATA_SOCK, dbuf, size);
++					}
++
++					ftp.current_cmd = NO_CMD;
++					disconnect(DATA_SOCK);
++					size = sprintf(dbuf, "226 Successfully transferred \"%s\"\r\n", ftp.workingdir);
++					send(CTRL_SOCK, dbuf, size);
++					break;
++
+ 
+     			case RETR_CMD:
+ #if defined(_FTP_DEBUG_)
+@@ -309,8 +357,10 @@ uint8_t ftpd_run(uint8_t * dbuf)
+ #if defined(F_FILESYSTEM)
+     				ftp.fr = f_open(&(ftp.fil), (const char *)ftp.filename, FA_READ);
+     				//print_filedsc(&(ftp.fil));
+-    				if(ftp.fr == FR_OK){
+-    					remain_filesize = ftp.fil.fsize;
++					if (ftp.fr == FR_OK)
++					{
++
++						remain_filesize = f_size(&ftp.fil);
+ #if defined(_FTP_DEBUG_)
+     					printf("f_open return FR_OK\r\n");
+ #endif
+@@ -325,7 +375,7 @@ uint8_t ftpd_run(uint8_t * dbuf)
+     						else
+     							send_byte = remain_filesize;
+ 
+-    						ftp.fr = f_read(&(ftp.fil), dbuf, send_byte , &blocklen);
++							ftp.fr = f_read(&(ftp.fil), dbuf, send_byte , (UINT *)&blocklen);
+     						if(ftp.fr != FR_OK)
+     							break;
+ #if defined(_FTP_DEBUG_)
+@@ -392,7 +442,7 @@ uint8_t ftpd_run(uint8_t * dbuf)
+     								//printf("----->fn:%s data:%s \r\n", ftp.filename, dbuf);
+ #endif
+ 
+-    								ftp.fr = f_write(&(ftp.fil), dbuf, (UINT)ret, &blocklen);
++									ftp.fr = f_write(&(ftp.fil), dbuf, (UINT)ret, (UINT *)&blocklen);
+ #if defined(_FTP_DEBUG_)
+     								//printf("----->dsize:%d recv:%d len:%d \r\n", remain_datasize, ret, blocklen);
+ #endif
+@@ -563,7 +613,7 @@ char proc_ftpd(char * buf)
+ 	char sendbuf[200];
+ 	int slen;
+ 	long ret;
+-	
++
+ 
+ 	/* Translate first word to lower case */
+ 	for (cp = buf; *cp != ' ' && *cp != '\0'; cp++)
+@@ -597,7 +647,7 @@ char proc_ftpd(char * buf)
+ 				return 0;
+ 		}
+ 	}
+-	
++
+ 	arg = &buf[strlen(*cmdp)];
+ 	while(*arg == ' ') arg++;
+ 
+@@ -794,7 +844,9 @@ char proc_ftpd(char * buf)
+ 				tmpstr = strrchr(arg, '/');
+ 				*tmpstr = 0;
+ #if defined(F_FILESYSTEM)
+-				slen = get_filesize(arg, tmpstr + 1);
++
++				slen = 4000;
++				//slen = get_filesize(arg, tmpstr + 1);
+ #else
+ 				slen = _MAX_SS;
+ #endif
+@@ -816,18 +868,21 @@ char proc_ftpd(char * buf)
+ 			arg[slen - 2] = 0x00;
+ 			if(slen > 3)
+ 			{
+-				arg[slen - 3] = 0x00;
++				// arg[slen - 3] = 0x00;
+ 				tmpstr = strrchr(arg, '/');
+-				*tmpstr = 0;
++				// *tmpstr = 0;
+ #if defined(F_FILESYSTEM)
+-				slen = get_filesize(arg, tmpstr + 1);
++				slen = 0;// slen = get_filesize(arg, tmpstr + 1);
+ #else
+ 				slen = 0;
+ #endif
+-				*tmpstr = '/';
+-				if(slen == 0){
++				// *tmpstr = '/';
++
++				if (slen == 0)
++				{
+ 					slen = sprintf(sendbuf, "213 %d\r\n", slen);
+ 					strcpy(ftp.workingdir, arg);
++					strcpy(ftp.workingdir, (strcmp(ftp.workingdir, "/..") && strcmp(ftp.workingdir, "..")) ? arg : "/");
+ 					slen = sprintf(sendbuf, "250 CWD successful. \"%s\" is current directory.\r\n", ftp.workingdir);
+ 				}
+ 				else
+@@ -901,7 +956,7 @@ char proc_ftpd(char * buf)
+ 			send(CTRL_SOCK, (uint8_t *)sendbuf, slen);
+ 			break;
+ 	}
+-	
++
+ 	return 1;
+ }
+ 
+@@ -910,9 +965,9 @@ char ftplogin(char * pass)
+ {
+ 	char sendbuf[100];
+ 	int slen = 0;
+-	
++
+ 	//memset(sendbuf, 0, DATA_BUF_SIZE);
+-	
++
+ #if defined(_FTP_DEBUG_)
+ 	printf("%s logged in\r\n", ftp.username);
+ #endif
+@@ -920,7 +975,7 @@ char ftplogin(char * pass)
+ 	slen = sprintf(sendbuf, "230 Logged on\r\n");
+ 	send(CTRL_SOCK, (uint8_t *)sendbuf, slen);
+ 	ftp.state = FTPS_LOGIN;
+-	
++
+ 	return 1;
+ }
+ 
+@@ -967,17 +1022,17 @@ int pport(char * arg)
+ void print_filedsc(FIL *fil)
+ {
+ #if defined(_FTP_DEBUG_)
+-	printf("File System pointer : %08X\r\n", fil->fs);
+-	printf("File System mount ID : %d\r\n", fil->id);
+-	printf("File status flag : %08X\r\n", fil->flag);
+-	printf("File System pads : %08X\r\n", fil->err);
+-	printf("File read write pointer : %08X\r\n", fil->fptr);
+-	printf("File size : %08X\r\n", fil->fsize);
+-	printf("File start cluster : %08X\r\n", fil->sclust);
+-	printf("current cluster : %08X\r\n", fil->clust);
+-	printf("current data sector : %08X\r\n", fil->dsect);
+-	printf("dir entry sector : %08X\r\n", fil->dir_sect);
+-	printf("dir entry pointer : %08X\r\n", fil->dir_ptr);
++	// printf("File System pointer : %08X\r\n", fil->fs);
++	// printf("File System mount ID : %d\r\n", fil->id);
++	// printf("File status flag : %08X\r\n", fil->flag);
++	// printf("File System pads : %08X\r\n", fil->err);
++	// printf("File read write pointer : %08X\r\n", fil->fptr);
++	// printf("File size : %08X\r\n", fil->fsize);
++	// printf("File start cluster : %08X\r\n", fil->sclust);
++	// printf("current cluster : %08X\r\n", fil->clust);
++	// printf("current data sector : %08X\r\n", fil->dsect);
++	// printf("dir entry sector : %08X\r\n", fil->dir_sect);
++	// printf("dir entry pointer : %08X\r\n", fil->dir_ptr);
+ #endif
+ }
+ #endif
+diff --git a/Internet/FTPServer/ftpd.h b/Internet/FTPServer/ftpd.h
+index 6a5e2bf..9e99da6 100644
+--- a/Internet/FTPServer/ftpd.h
++++ b/Internet/FTPServer/ftpd.h
+@@ -11,14 +11,14 @@ extern "C" {
+ *
+ * Filename	: ftpd.h
+ * Version	: 1.0
+-* Programmer(s)	: 
++* Programmer(s)	:
+ * Created	: 2003/01/28
+ * Description   : Header file of FTP daemon. (AVR-GCC Compiler)
+ */
+ 
+ #include <stdint.h>
+ 
+-//#define F_FILESYSTEM // If your target support a file system, you have to activate this feature and implement.
++#define F_FILESYSTEM // If your target support a file system, you have to activate this feature and implement.
+ 
+ #if defined(F_FILESYSTEM)
+ #include "ff.h"
+@@ -30,6 +30,7 @@ extern "C" {
+ 
+ #define LINELEN		100
+ //#define DATA_BUF_SIZE	100
++#define _MAX_SS		512
+ #if !defined(F_FILESYSTEM)
+ #define _MAX_SS		512
+ #endif

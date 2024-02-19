@@ -13,6 +13,7 @@ message("RP2040-HAT-C patch utils found")
 set(RP2040_HAT_C_SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 set(IOLIBRARY_DRIVER_SRC_DIR "${RP2040_HAT_C_SRC_DIR}/libraries/ioLibrary_Driver")
 set(MBEDTLS_SRC_DIR "${RP2040_HAT_C_SRC_DIR}/libraries/mbedtls")
+set(FATFS_SRC_DIR "${RP2040_HAT_C_SRC_DIR}/libraries/pico_fatfs")
 set(PICO_EXTRAS_SRC_DIR "${RP2040_HAT_C_SRC_DIR}/libraries/pico-extras")
 set(PICO_SDK_SRC_DIR "${RP2040_HAT_C_SRC_DIR}/libraries/pico-sdk")
 set(PICO_SDK_TINYUSB_SRC_DIR "${RP2040_HAT_C_SRC_DIR}/libraries/lib/tinyusb")
@@ -32,6 +33,14 @@ if(EXISTS "${MBEDTLS_SRC_DIR}/.git")
 	execute_process(COMMAND ${GIT_EXECUTABLE} -C ${MBEDTLS_SRC_DIR} clean -fdx)
 	execute_process(COMMAND ${GIT_EXECUTABLE} -C ${MBEDTLS_SRC_DIR} reset --hard)
 	message("mbedtls cleaned")
+endif()
+
+# Delete untracked files in fatfs
+if(EXISTS "${FATFS_SRC_DIR}/.git")
+	message("cleaning fatfs...")
+	execute_process(COMMAND ${GIT_EXECUTABLE} -C ${FATFS_SRC_DIR} clean -fdx)
+	execute_process(COMMAND ${GIT_EXECUTABLE} -C ${FATFS_SRC_DIR} reset --hard)
+	message("fatfs cleaned")
 endif()
 
 # Delete untracked files in pico-extras
@@ -66,7 +75,7 @@ execute_process(COMMAND ${GIT_EXECUTABLE} -C ${PICO_SDK_SRC_DIR} submodule updat
 message("submodules ioLibrary_Driver initialised")
 
 file(GLOB IOLIBRARY_DRIVER_PATCHES
-	"${RP2040_HAT_C_PATCH_DIR}/01_iolibrary_driver_ftp_client.patch"
+	"${RP2040_HAT_C_PATCH_DIR}/01_iolibrary_driver_ftp_server.patch"
 	)
 
 foreach(IOLIBRARY_DRIVER_PATCH IN LISTS IOLIBRARY_DRIVER_PATCHES)
@@ -76,3 +85,10 @@ foreach(IOLIBRARY_DRIVER_PATCH IN LISTS IOLIBRARY_DRIVER_PATCHES)
 		WORKING_DIRECTORY ${IOLIBRARY_DRIVER_SRC_DIR}
 	)
 endforeach()
+
+set(FATFS_DRIVER_PATCH "${RP2040_HAT_C_PATCH_DIR}/02_fatfs_driver.patch")
+message("Running patch ${FATFS_DRIVER_PATCH}")
+execute_process(
+	COMMAND ${GIT_EXECUTABLE} apply ${FATFS_DRIVER_PATCH}
+	WORKING_DIRECTORY ${FATFS_SRC_DIR}
+)

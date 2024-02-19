@@ -1,0 +1,117 @@
+diff --git a/CmakeLists.txt b/CMakeLists.txt
+similarity index 100%
+rename from CmakeLists.txt
+rename to CMakeLists.txt
+diff --git a/fatfs/ffconf.h b/fatfs/ffconf.h
+index 05d9d27..0dbfbd7 100644
+--- a/fatfs/ffconf.h
++++ b/fatfs/ffconf.h
+@@ -25,12 +25,12 @@
+ /   3: f_lseek() function is removed in addition to 2. */
+ 
+ 
+-#define FF_USE_FIND		0
++#define FF_USE_FIND		1
+ /* This option switches filtered directory read functions, f_findfirst() and
+ /  f_findnext(). (0:Disable, 1:Enable 2:Enable with matching altname[] too) */
+ 
+ 
+-#define FF_USE_MKFS		0
++#define FF_USE_MKFS		1
+ /* This option switches f_mkfs() function. (0:Disable or 1:Enable) */
+ 
+ 
+@@ -42,12 +42,12 @@
+ /* This option switches f_expand function. (0:Disable or 1:Enable) */
+ 
+ 
+-#define FF_USE_CHMOD	0
++#define FF_USE_CHMOD	1
+ /* This option switches attribute manipulation functions, f_chmod() and f_utime().
+ /  (0:Disable or 1:Enable) Also FF_FS_READONLY needs to be 0 to enable this option. */
+ 
+ 
+-#define FF_USE_LABEL	0
++#define FF_USE_LABEL	1
+ /* This option switches volume label functions, f_getlabel() and f_setlabel().
+ /  (0:Disable or 1:Enable) */
+ 
+@@ -84,7 +84,7 @@
+ / Locale and Namespace Configurations
+ /---------------------------------------------------------------------------*/
+ 
+-#define FF_CODE_PAGE	932
++#define FF_CODE_PAGE	936
+ /* This option specifies the OEM code page to be used on the target system.
+ /  Incorrect code page setting can cause a file open failure.
+ /
+@@ -133,7 +133,7 @@
+ /  ff_memfree() exemplified in ffsystem.c, need to be added to the project. */
+ 
+ 
+-#define FF_LFN_UNICODE	0
++#define FF_LFN_UNICODE	2
+ /* This option switches the character encoding on the API when LFN is enabled.
+ /
+ /   0: ANSI/OEM in current CP (TCHAR = char)
+@@ -153,7 +153,7 @@
+ /  on character encoding. When LFN is not enabled, these options have no effect. */
+ 
+ 
+-#define FF_FS_RPATH		1
++#define FF_FS_RPATH		2
+ /* This option configures support for relative path.
+ /
+ /   0: Disable relative path and remove related functions.
+diff --git a/tf_card.c b/tf_card.c
+index 91a6030..6a22744 100644
+--- a/tf_card.c
++++ b/tf_card.c
+@@ -3,19 +3,18 @@
+ #include "ff.h"
+ #include "diskio.h"
+ 
+-#include "pico/stdlib.h"
+ 
+ /*--------------------------------------------------------------------------
+    SPI and Pin selection
+ ---------------------------------------------------------------------------*/
+ static pico_fatfs_spi_config_t _config = {
+-    spi0,
++    spi1,
+     CLK_SLOW_DEFAULT,
+     CLK_FAST_DEFAULT,
+-    PIN_SPI0_MISO_DEFAULT,
+-    PIN_SPI0_CS_DEFAULT,
+-    PIN_SPI0_SCK_DEFAULT,
+-    PIN_SPI0_MOSI_DEFAULT,
++    PIN_SPI1_MISO_DEFAULT,
++    PIN_SPI1_CS_DEFAULT,
++    PIN_SPI1_SCK_DEFAULT,
++    PIN_SPI1_MOSI_DEFAULT,
+     false
+ };
+ 
+diff --git a/tf_card.h b/tf_card.h
+index e73ba4c..b718335 100644
+--- a/tf_card.h
++++ b/tf_card.h
+@@ -1,5 +1,7 @@
+ #pragma once
+ 
++#include "pico.h"
++#include "pico/stdlib.h"
+ #include "hardware/spi.h"
+ #include "hardware/clocks.h"
+ 
+@@ -14,8 +16,8 @@
+ #define PIN_SPI0_SCK_DEFAULT    2   // 2, 6, 18
+ #define PIN_SPI0_MOSI_DEFAULT   3   // 3, 7, 19
+ 
+-#define PIN_SPI1_MISO_DEFAULT   8   //  8, 12
+-#define PIN_SPI1_CS_DEFAULT     9   //  9, 13
++#define PIN_SPI1_MISO_DEFAULT   12  //  8, 12
++#define PIN_SPI1_CS_DEFAULT     13  //  9, 13
+ #define PIN_SPI1_SCK_DEFAULT    10  // 10, 14
+ #define PIN_SPI1_MOSI_DEFAULT   11  // 11, 15
+ 
